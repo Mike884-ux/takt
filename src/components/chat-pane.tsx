@@ -1,6 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Bell, Briefcase, Send, Trash2 } from "lucide-react";
+import { Bell, Briefcase, Loader2, Send, Trash2 } from "lucide-react";
 import { scanNewsDesk } from "@/lib/analyze";
 import type { BookAdvice, ChatMessage, Signal, SpotIdeaDesk, TraderPlan } from "@/lib/types";
 import { FOLLOWUP_PROMPTS, INTERVALS, QUICK_PAIRS } from "@/lib/types";
@@ -500,6 +500,7 @@ export function ChatPane({
   live?: boolean;
 }) {
   const endRef = useRef<HTMLDivElement>(null);
+  const [activePair, setActivePair] = useState<string | null>(null);
   const showFollow =
     !pending &&
     Boolean(lastSignal) &&
@@ -512,6 +513,9 @@ export function ChatPane({
   function submit(text: string) {
     const next = text.trim();
     if (!next || pending) return;
+    if (QUICK_PAIRS.includes(next as (typeof QUICK_PAIRS)[number])) {
+      setActivePair(next);
+    }
     onSend(next);
   }
 
@@ -627,12 +631,14 @@ export function ChatPane({
             <button
               key={item.id}
               type="button"
+              disabled={pending}
+              aria-pressed={interval === item.id}
               onClick={() => onInterval(item.id)}
               className={cn(
-                "h-8 rounded-sm px-2.5 font-mono text-xs",
+                "h-8 rounded-sm px-2.5 font-mono text-xs outline-none transition-[color,background-color,box-shadow,transform] duration-[var(--motion-quick)] ease-[var(--ease-out)] active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-primary/30 disabled:pointer-events-none disabled:opacity-40 disabled:active:scale-100",
                 interval === item.id
                   ? "bg-primary text-primary-fg"
-                  : "bg-surface-2 text-muted",
+                  : "bg-surface-2 text-muted hover:text-fg",
               )}
             >
               {item.label}
@@ -644,8 +650,15 @@ export function ChatPane({
             <button
               key={pair}
               type="button"
+              disabled={pending}
+              aria-pressed={activePair === pair}
               onClick={() => submit(pair)}
-              className="h-8 rounded-sm bg-surface-2 px-2.5 font-mono text-xs text-muted hover:text-fg"
+              className={cn(
+                "h-8 rounded-sm px-2.5 font-mono text-xs outline-none transition-[color,background-color,box-shadow,transform] duration-[var(--motion-quick)] ease-[var(--ease-out)] active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-primary/30 disabled:pointer-events-none disabled:opacity-40 disabled:active:scale-100",
+                activePair === pair
+                  ? "bg-primary text-primary-fg"
+                  : "bg-surface-2 text-muted hover:text-fg",
+              )}
             >
               {pair}
             </button>
@@ -678,9 +691,20 @@ export function ChatPane({
               Анализ
             </Button>
           ) : null}
-          <Button type="submit" size="icon" disabled={pending || !draft.trim()}>
-            <Send className="size-4" />
-            <span className="sr-only">Отправить</span>
+          <Button
+            type="submit"
+            size="icon"
+            disabled={pending || !draft.trim()}
+            aria-busy={pending}
+          >
+            {pending ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Send className="size-4" />
+            )}
+            <span className="sr-only">
+              {pending ? "Отправляется…" : "Отправить"}
+            </span>
           </Button>
         </div>
       </form>
